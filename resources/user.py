@@ -1,6 +1,6 @@
 from flask_restful import Resource
 from flask import request
-from werkzeug.security import generate_password_hash, check_password_hash, safe_str_cmp
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -19,7 +19,10 @@ user_schema = UserSchema()
 class UserRegister(Resource):
     @classmethod
     def post(cls):
-        user = user_schema.load(request.get_json())
+        user_data = request.get_json()
+        user = user_schema.load(user_data)
+        print(user.password)
+        user.password = generate_password_hash(user.password,'SHA256')
 
         if UserModel.find_by_username(user.username):
             return { 'message': 'User already exists.' }, 400
@@ -51,7 +54,7 @@ class UserLogin(Resource):
         user_data = user_schema.load(request.get_json())
         user = UserModel.find_by_username(user_data.username)
         
-        if user and safe_str_cmp(user_data.password, user.password):
+        if user and check_password_hash(user.password,user_data.password):
             access_token = create_access_token(identity=user.id, fresh=True)
             refresh_token = create_refresh_token(user.id)
             return { 'access_token': access_token, 'refresh_token': refresh_token}, 200
